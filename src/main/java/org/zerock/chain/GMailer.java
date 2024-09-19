@@ -30,7 +30,7 @@ import static javax.mail.Message.RecipientType.TO;
 public class GMailer {
 
     // 테스트용 이메일 주소를 정의합니다
-    private static final String TEST_EMAIL = "acornmolt119@gmail.com";
+    private static final String TEST_EMAIL = "yiit1333@gmail.com";
     // Gmail 서비스 객체를 저장할 변수를 정의합니다.
     private final Gmail service;
 
@@ -42,7 +42,7 @@ public class GMailer {
         GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
         // Gmail 서비스 객체를 빌드합니다.
         service = new Gmail.Builder(httpTransport, jsonFactory, getCredentials(httpTransport, jsonFactory))
-                .setApplicationName("Chain")
+                .setApplicationName("chain")
                 .build();
     }
 
@@ -61,7 +61,7 @@ public class GMailer {
                 .build();
 
         // 로컬 서버 리시버를 생성하여 인증을 진행합니다.
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8080).build();
         // 사용자의 자격 증명을 반환합니다.
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
@@ -69,7 +69,9 @@ public class GMailer {
     // 이메일을 보내는 메서드입니다. 수신자의 이메일 주소를 매개변수로 추가합니다.
     private void sendMail(String recipientEmail, String subject, String message) throws Exception {
         // 이메일 세션 설정을 위한 프로퍼티 객체를 생성합니다.
-        Properties props = new Properties();
+        Properties props =  System.getProperties();
+        String host = "smtp.gmail.com";
+        props.setProperty("smtp.smtp.host", host);
         Session session = Session.getDefaultInstance(props, null);
         // MIME 형식의 이메일 객체를 생성합니다.
         MimeMessage email = new MimeMessage(session);
@@ -113,7 +115,7 @@ public class GMailer {
     // 메인 메서드: GMailer 인스턴스를 생성하고 이메일을 보냅니다.
     public static void main(String[] args) throws Exception {
         // GMailer 객체를 생성하고 sendMail 메서드를 호출하여 이메일을 보냅니다.
-        new GMailer().sendMail("choh_56@naver.com", "새로운 메시지", """
+        new GMailer().sendMail("yiit1333@gmail.com", "새로운 메시지", """
                 Dear ,
                 Hello world
                 """);
