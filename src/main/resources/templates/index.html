@@ -618,6 +618,41 @@
                 console.error("진행 중인 프로젝트 데이터를 불러오는 중 오류 발생:", error);
             });
     });
+
+
+    function showProjectDetails(projectNo) {
+        // 서버에서 projectNo를 이용해 데이터를 가져옵니다.
+        fetch('/chart/project/details/' + projectNo)
+            .then(response => response.json())
+            .then(data => {
+                // 데이터 가져오기 성공 시, 모달에 정보 설정
+                document.getElementById('modalProjectName').textContent = data.projectName;
+                document.getElementById('modalProjectProgress').textContent = data.projectProgress + '%';
+                document.getElementById('modalProjectStartDate').textContent = data.projectStartDate;
+                document.getElementById('modalProjectEndDate').textContent = data.projectEndDate;
+
+                // 사원 번호로 작성자 이름을 가져와 표시
+                processModalParticipants(data.participants);
+
+                // projectContent의 <p> 태그를 제거하고 텍스트만 설정
+                const modalProjectContentElement = document.getElementById('modalProjectContent');
+                let rawContent = data.projectContent;
+
+                // <p>와 </p>를 빈 문자열로 대체
+                rawContent = rawContent.replace(/<\/?p>/g, '');
+                modalProjectContentElement.textContent = rawContent;
+
+                // 현재 프로젝트 번호를 전역 변수에 저장
+                currentProjectNo = projectNo;
+
+                // 모달을 띄우기
+                const modal = new bootstrap.Modal(document.getElementById('projectDetailsModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error fetching project details:', error);
+            });
+    }
 </script>
 
 

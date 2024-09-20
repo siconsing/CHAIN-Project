@@ -153,7 +153,7 @@ public class ApprovalController {
         model.addAttribute("document", document);
 
         // 'draftRead.html' 뷰를 반환
-        return "/approval/draftRead";
+        return "approval/draftRead";
     }
 
     @GetMapping("/read/{docNo}")
@@ -167,7 +167,7 @@ public class ApprovalController {
         model.addAttribute("document", document);
 
         // 'read.html' 뷰를 반환
-        return "/approval/read";
+        return "approval/read";
     }
 
 //
@@ -187,14 +187,16 @@ public class ApprovalController {
         model.addAttribute("document", document);
 
         // 'adminRequest.html' 뷰를 반환
-        return "/approval/adminRequest";
+        return "approval/adminRequest";
     }
 
     @GetMapping("/rejectionRead/{docNo}")
     public String approvalRejectionDocument(@PathVariable("docNo") int docNo,
                                             @RequestParam("source") String source,
+                                            @RequestParam("category") String category,
                                             Model model) {
-        log.info("Source: {}", source);
+        log.info("Source----------------------------: {}", source);
+        log.info("category----------------------------: {}", category);
 
         // 문서 정보 조회
         DocumentsDTO document = documentsService.getDocumentById(docNo);
@@ -203,9 +205,10 @@ public class ApprovalController {
         model.addAttribute("document", document);
         // 출처 페이지 정보 추가
         model.addAttribute("source", source);
+        model.addAttribute("category", category);
 
         // 'rejectionRead.html' 뷰를 반환
-        return "/approval/rejectionRead";
+        return "approval/rejectionRead";
     }
 
     @GetMapping("/getForm/{category}")

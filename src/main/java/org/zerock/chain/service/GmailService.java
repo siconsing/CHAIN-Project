@@ -63,7 +63,7 @@ public class GmailService {
                 NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
                 GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
                 service = new Gmail.Builder(httpTransport, jsonFactory, getCachedOrNewCredentials(httpTransport, jsonFactory))
-                        .setApplicationName("chain")
+                        .setApplicationName("CHAIN")
                         .build();
                 log.info("Gmail 서비스 객체 초기화 완료.");
             } catch (Exception e) {
@@ -629,7 +629,7 @@ public class GmailService {
             Session session = Session.getDefaultInstance(props, null);
             MimeMessage email = new MimeMessage(session);
 
-            email.setFrom(new InternetAddress("yiit1333@gmail.com"));
+            email.setFrom(new InternetAddress("your-email@gmail.com"));
             email.addRecipient(javax.mail.Message.RecipientType.TO, new InternetAddress(recipientEmail));
             email.setSubject(subject);
 
