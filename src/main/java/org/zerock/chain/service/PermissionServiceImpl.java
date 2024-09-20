@@ -13,6 +13,7 @@ import org.zerock.chain.repository.EmployeePermissionRepository;
 import org.zerock.chain.repository.EmployeeRepository;
 import org.zerock.chain.repository.PermissionRepository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,6 +103,13 @@ public class PermissionServiceImpl implements PermissionService {
     public List<PermissionDTO> getEmployeePermissions(Long empNo) {
         Employee employee = employeeRepository.findById(empNo)
                 .orElseThrow(() -> new EmployeeNotFoundException("사원을 찾을 수 없습니다. ID: " + empNo));
+
+//        // employeePermissions가 null이면 빈 리스트로 초기화
+//        List<EmployeePermission> employeePermissions = employee.getEmployeePermissions();
+//        if (employeePermissions == null) {
+//            employeePermissions = new ArrayList<>();
+//        }
+
         return employee.getEmployeePermissions().stream()
                 .map(ep -> modelMapper.map(ep.getPermission(), PermissionDTO.class))
                 .collect(Collectors.toList());

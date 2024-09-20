@@ -17,6 +17,7 @@ import org.zerock.chain.repository.EmployeeRepository;
 import org.zerock.chain.repository.RankRepository;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -134,9 +135,18 @@ public class EmployeeServiceImpl implements EmployeeService {
             dto.setRankId(employee.getRank().getRankNo());
             dto.setRankName(employee.getRank().getRankName());
         }
-        dto.setPermissionIds(employee.getEmployeePermissions().stream()
-                .map(ep -> ep.getPermission().getPerNo())
-                .collect(Collectors.toList()));
+
+        // 권한 Null 체크 추가
+        if (employee.getEmployeePermissions() != null) {
+            dto.setPermissionIds(employee.getEmployeePermissions().stream()
+                    .map(ep -> ep.getPermission().getPerNo())
+                    .collect(Collectors.toList()));
+        } else {
+            dto.setPermissionIds(new ArrayList<>()); // 빈 리스트 설정
+        }
+//        dto.setPermissionIds(employee.getEmployeePermissions().stream()
+//                .map(ep -> ep.getPermission().getPerNo())
+//                .collect(Collectors.toList()));
         return dto;
     }
 
@@ -154,6 +164,8 @@ public class EmployeeServiceImpl implements EmployeeService {
                     .orElseThrow(() -> new EntityNotFoundException("직급을 찾을 수 없습니다. ID: " + dto.getRankId()));
             employee.setRank(rank);
         }
+
+
 
         return employee;
     }
