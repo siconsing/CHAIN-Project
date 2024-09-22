@@ -93,6 +93,8 @@ public class SignupController {
     // 로그인 페이지를 보여주는 GET 요청 핸들러
     @GetMapping("/login")
     public String loginPage() {
+
+        logger.info("login---------------------");
         // 현재 인증된 사용자가 있는지 확인
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() && !(authentication instanceof AnonymousAuthenticationToken)) {
