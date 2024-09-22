@@ -1,6 +1,8 @@
 package org.zerock.chain;
 
+import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
@@ -20,14 +22,21 @@ import javax.mail.internet.MimeMessage;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 
 import com.google.api.services.gmail.model.Message;
 import org.apache.commons.codec.binary.Base64;
+import org.springframework.beans.factory.annotation.Value;
+
 import static javax.mail.Message.RecipientType.TO;
 
 public class GMailer {
+    private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_LABELS);
+    @Value("${gmail.redirect.uri}")
+    private String gmailRedirectUri;
 
     // 테스트용 이메일 주소를 정의합니다
     private static final String TEST_EMAIL = "yiit1333@gmail.com";
@@ -47,7 +56,7 @@ public class GMailer {
     }
 
     // 사용자의 자격 증명을 얻는 메서드입니다.
-    private static Credential getCredentials(final NetHttpTransport httpTransport, GsonFactory jsonFactory)
+    private Credential getCredentials(final NetHttpTransport httpTransport, GsonFactory jsonFactory)
             throws IOException {
         // 클라이언트 시크릿을 로드합니다.
         GoogleClientSecrets clientSecrets =
@@ -55,16 +64,34 @@ public class GMailer {
 
         // 인증 흐름을 구축하고 사용자 승인 요청을 트리거합니다.
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, jsonFactory, clientSecrets, Set.of(GmailScopes.GMAIL_SEND))
+                httpTransport, jsonFactory, clientSecrets,         Set.of(
+                GmailScopes.GMAIL_READONLY,  // Gmail 읽기 전용 권한
+                GmailScopes.GMAIL_MODIFY,    // Gmail 수정 권한
+                GmailScopes.GMAIL_COMPOSE,   // 이메일 작성 권한
+                GmailScopes.GMAIL_INSERT,    // 이메일 삽입 권한
+                "https://mail.google.com/"   // 전체 메일 관련 권한
+        ))
                 .setDataStoreFactory(new FileDataStoreFactory(Paths.get("tokens").toFile()))
                 .setAccessType("offline")
                 .build();
 
-        // 로컬 서버 리시버를 생성하여 인증을 진행합니다.
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8080).build();
-        // 사용자의 자격 증명을 반환합니다.
-        return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+        // 인증 URL을 생성하고 클라이언트 또는 브라우저로 전달 (외부 도메인 사용)
+        AuthorizationCodeRequestUrl authorizationUrl = flow.newAuthorizationUrl().setRedirectUri(gmailRedirectUri);
+        System.out.println("Please open the following URL in your browser:");
+        System.out.println(authorizationUrl);
+
+        // 사용자로부터 받은 인증 코드를 사용하여 액세스 토큰을 가져옴
+        String code = receiveAuthorizationCode();
+        TokenResponse response = flow.newTokenRequest(code).setRedirectUri(gmailRedirectUri).execute();
+
+        return flow.createAndStoreCredential(response, "user");
     }
+    // 리디렉션 URI에서 인증 코드를 수신하는 메서드 구현
+    private static String receiveAuthorizationCode() {
+        // 사용자로부터 인증 코드를 입력받는 로직 구현 (또는 서버의 콜백 처리 로직)
+        return "authorization_code_from_user";  // 사용자가 브라우저에서 입력한 코드를 받아야 함
+    }
+
 
     // 이메일을 보내는 메서드입니다. 수신자의 이메일 주소를 매개변수로 추가합니다.
     private void sendMail(String recipientEmail, String subject, String message) throws Exception {

@@ -24,7 +24,7 @@ import java.io.IOException;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class SecurityConfig  {
 
 
     @Bean
@@ -47,6 +47,7 @@ public class SecurityConfig {
                                 .requestMatchers("/user/commentModal").hasAuthority("관리자")
                                 .requestMatchers("/user/qna/detail/showEditCommentModal").hasAuthority("관리자")
                                 .requestMatchers("/admin/**").hasAuthority("관리자") // 관리자 접근 권한이 있는 사용자만 접근 가능
+                                .requestMatchers("/oauth2/callback", "/login", "/error").permitAll()  // 인증 없이 허용할 경로
                                 .anyRequest().authenticated()
                 )
                 .formLogin((form) -> form

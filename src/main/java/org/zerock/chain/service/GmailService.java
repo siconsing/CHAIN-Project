@@ -1,9 +1,11 @@
 package org.zerock.chain.service;
 
-import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;
+import com.google.api.client.auth.oauth2.TokenResponse;
+import com.google.api.client.auth.oauth2.TokenResponseException;
+import com.google.api.client.json.JsonFactory;
+import org.springframework.beans.factory.annotation.Value;
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
@@ -16,7 +18,10 @@ import com.google.api.services.gmail.model.*;
 import com.google.api.services.gmail.model.Label;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.codec.binary.Base64;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.zerock.chain.dto.MessageDTO;
 
 import javax.mail.MessagingException;
@@ -32,6 +37,7 @@ import javax.activation.FileDataSource;
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -47,84 +53,135 @@ public class GmailService {
 
     // static 변수로 Singleton 인스턴스 선언
     private static Gmail service;
+    private static GoogleAuthorizationCodeFlow flow;
     private static Credential cachedCredential;
     private static long credentialExpiryTime;
     private static final long CACHE_DURATION_MS = 3600 * 1000; // 1시간 (3600초)
     private static final String UPLOAD_DIR = "C:/upload/";
+    private static final String CREDENTIALS_FILE_PATH = "credentials.json";
+    private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
+
+    @Value("${gmail.redirect.uri}")
+    private String gmailRedirectUri;
+    private static final List<String> SCOPES = Collections.singletonList(GmailScopes.GMAIL_LABELS);
+    private static final String TOKENS_DIRECTORY_PATH = "tokens";
+
 
     // Singleton 패턴 적용: 외부에서 객체 생성을 하지 못하도록 기본 생성자를 private으로 설정
-    private GmailService() {}
+    private GmailService() {
+    }
 
     // Singleton 인스턴스를 가져오는 메서드
-    public static synchronized Gmail getInstance() {
+    public synchronized Gmail getInstance() {
         if (service == null) {
             try {
-                log.info("Gmail 서비스 객체 초기화 중...");
+                log.info("Gmail 서비스 초기화 중...");
                 NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
                 GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
-                service = new Gmail.Builder(httpTransport, jsonFactory, getCachedOrNewCredentials(httpTransport, jsonFactory))
-                        .setApplicationName("CHAIN")
+
+                // credentials.json 파일에서 클라이언트 비밀 정보 로드
+                GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(jsonFactory,
+                        new InputStreamReader(GmailService.class.getResourceAsStream("/credentials.json")));
+
+                flow = new GoogleAuthorizationCodeFlow.Builder(
+                        httpTransport, jsonFactory, clientSecrets, Set.of(
+                        GmailScopes.GMAIL_READONLY,  // Gmail 읽기 전용 권한
+                        GmailScopes.GMAIL_MODIFY,    // Gmail 수정 권한
+                        GmailScopes.GMAIL_COMPOSE,   // 이메일 작성 권한
+                        GmailScopes.GMAIL_INSERT,    // 이메일 삽입 권한
+                        "https://mail.google.com/"   // 전체 메일 관련 권한
+                ))
+                        .setDataStoreFactory(new FileDataStoreFactory(new java.io.File("tokens"))) // 로컬에 토큰 저장
+                        .setAccessType("offline") // 오프라인 접근 허용
                         .build();
-                log.info("Gmail 서비스 객체 초기화 완료.");
+
+                log.info("getInstacne-------------> 크레덴셜{}", cachedCredential);
+
+                service = new Gmail.Builder(httpTransport, jsonFactory, cachedCredential)
+                        .setApplicationName("chain")
+                        .build();
+
+                log.info("Gmail 서비스 초기화 완료.");
             } catch (Exception e) {
-                log.error("Gmail 서비스 객체 초기화 중 오류 발생", e);
-                throw new RuntimeException("Gmail 서비스 초기화에 실패했습니다.", e);
+                log.error("Gmail 서비스 초기화 중 오류 발생", e);
+                throw new RuntimeException("Gmail 서비스 초기화 실패", e);
             }
-        } else {
-            log.info("기존의 Gmail 서비스 객체 반환.");
         }
         return service;
     }
 
-    // OAuth2 인증을 수행하여 자격 증명을 얻는 메서드
-    private static Credential getCachedOrNewCredentials(final NetHttpTransport httpTransport, GsonFactory jsonFactory) throws Exception {
-        if (isCachedCredentialValid()) {
-            return cachedCredential;
-        }
+       // 콜백에서 받은 인증 코드를 처리하는 메서드
+    public void processAuthorizationCode(String code) throws Exception {
+        NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+        GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(jsonFactory,
-                new InputStreamReader(GmailService.class.getResourceAsStream("/credentials.json")));
+        log.info("발급받은 코드 {}", code);
 
-        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                httpTransport, jsonFactory, clientSecrets, Set.of(
-                GmailScopes.GMAIL_SEND,
-                GmailScopes.GMAIL_READONLY,
-                GmailScopes.GMAIL_MODIFY,
-                GmailScopes.GMAIL_COMPOSE,
-                GmailScopes.GMAIL_INSERT,
-                "https://mail.google.com/"))
-                .setDataStoreFactory(new FileDataStoreFactory(Paths.get("tokens").toFile()))
-                .setAccessType("offline")
-                .build();
 
-        // LocalServerReceiver로 인증 완료 처리
-        cachedCredential = new AuthorizationCodeInstalledApp(flow, new LocalServerReceiver.Builder().setPort(8888).build()) {
-            @Override
-            protected void onAuthorization(AuthorizationCodeRequestUrl authorizationUrl) {
-                openAuthUrlInBrowser(authorizationUrl.build());
+        // 인증 코드로 토큰 요청
+        TokenResponse response = flow.newTokenRequest(code).setRedirectUri(gmailRedirectUri).execute();
+
+        // 자격 증명 생성 및 저장
+        cachedCredential = flow.createAndStoreCredential(response, "user");
+        log.info("발급받은 cachedCredential코드 {}", cachedCredential);
+
+        log.info("새로운 자격 증명이 생성되었습니다.");
+    }
+
+    @GetMapping("/oauth2/authorize")
+    public String authorize() {
+        System.out.println("---------------------->" + getRedirectUri());
+        String authorizationUrl = flow.newAuthorizationUrl().setRedirectUri(gmailRedirectUri).build();
+        return "redirect:" + authorizationUrl;
+    }
+
+    @GetMapping("/oauth2/callback")
+    public String oauth2Callback(@RequestParam("code") String code) throws IOException {
+        try {
+            System.out.println("+++++++++++++++++++++++++++++++++>" + getRedirectUri());
+            TokenResponse response = flow.newTokenRequest(code).setRedirectUri(getRedirectUri()).execute();
+            Credential credential = flow.createAndStoreCredential(response, "user");
+            if (credential.getExpiresInSeconds() != null && credential.getExpiresInSeconds() <= 60) {
+                credential.refreshToken();
             }
-        }.authorize("user");
 
-        credentialExpiryTime = System.currentTimeMillis() + CACHE_DURATION_MS;
-        return cachedCredential;
+            // GmailService에서 인증 코드로 자격 증명을 처리
+            processAuthorizationCode(code);
+
+            return "redirect:/mail/threads?accessToken=" + credential.getAccessToken();
+        } catch (TokenResponseException e) {
+            // 오류 처리
+            System.out.println("Error during token exchange: " + e.getDetails());
+            return "error";
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String getRedirectUri() {
+        try (InputStream in = new ClassPathResource(CREDENTIALS_FILE_PATH).getInputStream()) {
+            GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+            return clientSecrets.getDetails().getRedirectUris().get(0);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load redirect URI from credentials.json", e);
+        }
     }
 
     // 캐시된 자격 증명이 유효한지 확인하는 메서드
-    private static boolean isCachedCredentialValid() {
+    private boolean isCachedCredentialValid() {
         return cachedCredential != null &&
                 cachedCredential.getAccessToken() != null &&
                 credentialExpiryTime > System.currentTimeMillis();
     }
 
     // 브라우저에서 OAuth2 인증 URL을 여는 메서드
-    private static void openAuthUrlInBrowser(String authUrl) {
+    private void openAuthUrlInBrowser(String authUrl) {
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(new URI(authUrl));  // 브라우저에 URL 열기
                 System.out.println("브라우저에서 URL을 열었습니다: " + authUrl);
             } else {
-                // 브라우저가 지원되지 않는 경우 수동으로 실행
-                openUrlByCommand(authUrl);
+                openUrlByCommand(authUrl);  // 브라우저가 지원되지 않으면 명령어로 실행
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -132,36 +189,26 @@ public class GmailService {
         }
     }
 
-    // 운영체제에 따른 브라우저 실행 방법
-    private static void openUrlByCommand(String authUrl) throws IOException {
+    private void openUrlByCommand(String authUrl) throws IOException {
         String os = System.getProperty("os.name").toLowerCase();
         Runtime rt = Runtime.getRuntime();
 
         if (os.contains("win")) {
-            // Windows
             rt.exec("rundll32 url.dll,FileProtocolHandler " + authUrl);
         } else if (os.contains("mac")) {
-            // macOS
             rt.exec("open " + authUrl);
         } else if (os.contains("nix") || os.contains("nux")) {
-            // Linux/Unix
-            String[] browsers = { "xdg-open", "google-chrome", "firefox" };
-            boolean browserOpened = false;
+            String[] browsers = {"xdg-open", "google-chrome", "firefox"};
             for (String browser : browsers) {
                 try {
-                    rt.exec(new String[] { browser, authUrl });
-                    browserOpened = true;
+                    rt.exec(new String[]{browser, authUrl});
                     break;
                 } catch (IOException e) {
-                    // 브라우저 실행에 실패하면 다음 브라우저로 시도
+                    // 시도 실패 시 다음 브라우저로 넘어감
                 }
-            }
-            if (!browserOpened) {
-                System.out.println("지원하는 브라우저를 찾을 수 없습니다. 수동으로 URL을 열어주세요: " + authUrl);
             }
         }
     }
-    // Gmail 서비스 객체를 사용하는 메서드들
 
 
     public void sendMail(String recipientEmail, String subject, String messageText, List<String> filePaths) throws Exception {
@@ -226,14 +273,12 @@ public class GmailService {
     }
 
 
-
     public Optional<String> getHeader(List<MessagePartHeader> headers, String name) {
         return headers.stream()
                 .filter(header -> header.getName().equalsIgnoreCase(name))
                 .map(MessagePartHeader::getValue)
                 .findFirst();
     }
-
 
 
     public List<MessageDTO> listMessages(String userId) throws IOException {
@@ -489,8 +534,6 @@ public class GmailService {
     }
 
 
-
-
     public List<MessageDTO> listSentMessages(String userId) throws IOException {
         Gmail service = getInstance();
         log.info("Fetching sent emails for user: {}", userId);
@@ -602,8 +645,6 @@ public class GmailService {
         }
         return messageDTOList;
     }
-
-
 
 
     public void deleteMessagePermanently(String userId, String messageId) throws IOException {
@@ -870,7 +911,6 @@ public class GmailService {
     }
 
 
-
     public List<MessageDTO> listImportantMessages(String userId) throws IOException {
         Gmail service = getInstance();
         List<Message> messages = null;
@@ -911,7 +951,6 @@ public class GmailService {
 
         return messageDTOList;
     }
-
 
 
     public void addStar(String userId, String messageId) throws IOException {
@@ -1052,7 +1091,6 @@ public class GmailService {
 
         return messageDTOList;
     }
-
 
 
     public String createMyselfLabel(String userId) throws IOException {

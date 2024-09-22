@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gmail Threads</title>
+</head>
+<body>
+<h1>Gmail Threads</h1>
+<ul>
+    <!-- 스레드 목록을 출력 -->
+    <th:block th:each="thread : ${threads}">
+        <li th:text="${thread.id}"></li>
+    </th:block>
+</ul>
+</body>
+</html>

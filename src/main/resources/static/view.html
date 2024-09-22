@@ -17,7 +17,7 @@
         document.getElementById('content').innerHTML = 'Content ID is missing in the URL.';
     } else {
         // Fetch the content from the server
-        fetch('http://localhost:8080/content/get/' + contentId)
+        fetch('/content/get/' + contentId)
             .then(response => response.json())
             .then(data => {
                 if (data.id) {
