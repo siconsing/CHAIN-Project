@@ -629,7 +629,7 @@ public class GmailService {
             Session session = Session.getDefaultInstance(props, null);
             MimeMessage email = new MimeMessage(session);
 
-            email.setFrom(new InternetAddress("your-email@gmail.com"));
+            email.setFrom(new InternetAddress("yiit1333@gmail.com"));
             email.addRecipient(javax.mail.Message.RecipientType.TO, new InternetAddress(recipientEmail));
             email.setSubject(subject);
 

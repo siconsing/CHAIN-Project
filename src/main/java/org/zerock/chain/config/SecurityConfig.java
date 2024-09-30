@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,7 +24,7 @@ import java.io.IOException;
 
 @Configuration
 @EnableWebSecurity
-public class SecurityConfig {
+public class SecurityConfig  {
 
 
     @Bean
@@ -34,7 +35,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((requests) -> requests
                                 .requestMatchers("/login", "/api/check-email", "/api/check-phone", "/signup", "/assets/**", "/uploads/**","/admin/attendance/check-in","/admin/attendance/check-out","/admin/attendance/check-status" ).permitAll()
                                 .requestMatchers("/notice/register").hasAuthority("공지사항 작성")
@@ -46,6 +47,7 @@ public class SecurityConfig {
                                 .requestMatchers("/user/commentModal").hasAuthority("관리자")
                                 .requestMatchers("/user/qna/detail/showEditCommentModal").hasAuthority("관리자")
                                 .requestMatchers("/admin/**").hasAuthority("관리자") // 관리자 접근 권한이 있는 사용자만 접근 가능
+                                .requestMatchers("/oauth2/callback", "/login", "/error").permitAll()  // 인증 없이 허용할 경로
                                 .anyRequest().authenticated()
                 )
                 .formLogin((form) -> form

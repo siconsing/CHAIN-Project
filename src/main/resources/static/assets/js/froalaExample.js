@@ -4,10 +4,10 @@ const editorInstance = new FroalaEditor('#editor', {
     language: 'ko',
 
     // 이미지 업로드를 처리할 서버의 URL을 설정합니다.
-    imageUploadURL: 'http://localhost:8080/froala/upload_image',
+    imageUploadURL: '/froala/upload_image',
 
     // 파일 업로드를 처리할 서버의 URL을 설정합니다.
-    fileUploadURL: 'http://localhost:8080/froala/upload_file',
+    fileUploadURL: '/froala/upload_file',
 
     // 허용되는 이미지 파일의 형식을 설정합니다.
     imageAllowedTypes: ['jpeg', 'jpg', 'png', 'gif'],
@@ -52,7 +52,7 @@ document.getElementById('save-button').addEventListener('click', function () {
     }
 
     // 서버로 콘텐츠를 저장하기 위한 POST 요청을 보냅니다.
-    fetch('http://localhost:8080/content/save', {
+    fetch('/content/save', {
         method: 'POST',  // HTTP 메서드를 POST로 설정
         headers: {
             'Content-Type': 'application/json'  // 요청의 콘텐츠 유형을 JSON으로 설정

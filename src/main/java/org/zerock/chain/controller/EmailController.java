@@ -1,5 +1,10 @@
 package org.zerock.chain.controller;
 
+import com.google.api.client.auth.oauth2.BearerToken;
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.gmail.model.ListThreadsResponse;
 import com.google.api.services.gmail.model.Message;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.log4j.Log4j2;
@@ -35,6 +40,8 @@ import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.api.services.gmail.Gmail;
+
 @Log4j2
 @Controller
 @RequestMapping("/mail")   // "/mail" 경로 하위에 있는 요청들을 처리.
@@ -44,6 +51,29 @@ public class EmailController {
     private GmailService gmailService;
 
     private static final String UPLOAD_DIR = "C:/upload/";
+
+    @GetMapping("/threads")
+    public String listThreads(@RequestParam("accessToken") String accessToken, Model model) {
+        try {
+            // Gmail 서비스 객체를 초기화 (Access Token을 사용)
+            Gmail service = new Gmail.Builder(GoogleNetHttpTransport.newTrustedTransport(), GsonFactory.getDefaultInstance(), new Credential(BearerToken.authorizationHeaderAccessMethod()).setAccessToken(accessToken))
+                    .setApplicationName("Your App Name")
+                    .build();
+
+            // Gmail API를 사용하여 스레드 목록을 가져옴
+            ListThreadsResponse threadsResponse = service.users().threads().list("me").execute();
+
+            // 스레드 목록을 모델에 추가하여 뷰로 전달
+            model.addAttribute("threads", threadsResponse.getThreads());
+
+            // 스레드 목록을 표시할 페이지로 이동
+            return "threads"; // 스레드를 보여줄 view 파일 (threads.html)로 이동
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "error"; // 오류가 발생했을 때 에러 페이지로 이동
+        }
+    }
+
 
     // 메일 작성 페이지를 반환하는 메서드
     @GetMapping("/compose")
@@ -115,13 +145,11 @@ public class EmailController {
     }
 
 
-
     // 메일 전송 완료 페이지를 반환하는 메서드
     @GetMapping("/complete")
     public String mailComplete() {
         return "mail/complete";
     }
-
 
 
     // 경로를 처리하는 메서드
@@ -222,9 +250,6 @@ public class EmailController {
     }
 
 
-
-
-
     // 메일 전체 수신함 INBOX 메일함을 표시하는 메서드 추가 [메일의 메인 페이지]
     @GetMapping("/inbox")
     public String listInboxEmails(Model model) {
@@ -232,6 +257,7 @@ public class EmailController {
         try {
             // GmailService에서 INBOX 라벨이 적용된 이메일 목록을 가져옴
             List<MessageDTO> inboxMessages = gmailService.listInboxMessages("me");
+            log.info("inbox------------------->{}", inboxMessages);
             model.addAttribute("messages", inboxMessages);
             model.addAttribute("success", "Inbox emails fetched successfully!");
         } catch (IOException e) {
@@ -322,9 +348,6 @@ public class EmailController {
         }
         return "mail/mailRead";
     }
-
-
-
 
 
     // 이메일 읽음 상태를 토글하거나 특정 상태로 설정하는 메서드
@@ -505,7 +528,6 @@ public class EmailController {
         }
         return "redirect:/mail/trash"; // 휴지통 페이지로 리다이렉트
     }
-
 
 
     // 작성 데이터를 임시저장(Draft) 시키는 메서드
