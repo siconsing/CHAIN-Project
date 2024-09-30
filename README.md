@@ -51,6 +51,11 @@
 </table>
 
 ***
+# 팀원 소개
+![팀원 소개1](https://github.com/user-attachments/assets/895def41-5f3d-4b33-9115-d56a16aed336)
+![팀원 소개2](https://github.com/user-attachments/assets/657f4327-32ad-4081-8072-ab9db20c9f2b)
+
+***
 # 페이지 구성
 ### 🧑‍💼 사원 페이지
 ![사원1](https://github.com/user-attachments/assets/2aa74abe-c571-48d8-94f7-85cfb44092cc)
